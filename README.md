@@ -1,4 +1,4 @@
-# SystemDiagnosticsPlugin
+# WorkstationInsights
 
 A Semantic Kernel plugin to diagnose and monitor system health on a Windows machine. This plugin exposes various system-level diagnostics as functions, allowing LLM agents to query the state of the machine using natural language.
 
@@ -60,7 +60,7 @@ A Semantic Kernel plugin to diagnose and monitor system health on a Windows mach
 2. Register with the Kernel:
 
 ```csharp
-builder.Plugins.AddFromType<SystemDiagnosticsPlugin>();
+builder.Plugins.AddFromType<WorkstationInsights>();
 ```
 
 3. Now your LLM can invoke diagnostics like:
