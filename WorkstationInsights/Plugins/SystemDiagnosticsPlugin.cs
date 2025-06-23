@@ -1,8 +1,13 @@
-﻿using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel;
+using System;
 using System.Diagnostics;
+using System.IO;
+using System.Linq;
 using System.Management;
 using System.Net.NetworkInformation;
 using System.ServiceProcess;
+using System.Collections.Generic;
+using Microsoft.Win32;
 
 public class SystemDiagnosticsPlugin
 {
@@ -115,11 +120,20 @@ public class SystemDiagnosticsPlugin
     [KernelFunction]
     public List<string> ListTopCpuProcesses()
     {
-        return Process.GetProcesses()
-            .OrderByDescending(p => p.TotalProcessorTime)
-            .Take(5)
-            .Select(p => $"{p.ProcessName} - CPU Time: {p.TotalProcessorTime.TotalSeconds:F0}s")
-            .ToList();
+        var results = new List<string>();
+        foreach (var process in Process.GetProcesses())
+        {
+            try
+            {
+                results.Add($"{process.ProcessName} - CPU Time: {process.TotalProcessorTime.TotalSeconds:F0}s");
+            }
+            catch { }
+        }
+        return results.OrderByDescending(p =>
+        {
+            var split = p.Split(':');
+            return double.TryParse(split.Last().Replace("s", "").Trim(), out var secs) ? secs : 0;
+        }).Take(5).ToList();
     }
 
     [KernelFunction]
@@ -170,6 +184,50 @@ public class SystemDiagnosticsPlugin
     {
         var svc = ServiceController.GetServices().FirstOrDefault(s => s.ServiceName == serviceName);
         return svc != null ? svc.Status.ToString() : "Not found";
+    }
+
+    [KernelFunction]
+    public string GetWindowsDefenderStatus()
+    {
+        using var searcher = new ManagementObjectSearcher("root\\SecurityCenter2", "SELECT * FROM AntiVirusProduct");
+        foreach (var obj in searcher.Get())
+        {
+            return $"{obj["displayName"]} - {obj["productState"]}";
+        }
+        return "No antivirus status found.";
+    }
+
+    [KernelFunction]
+    public string GetFirewallStatus()
+    {
+        try
+        {
+            using var mgr = new ManagementClass("root\\StandardCimv2", "MSFT_NetFirewallProfile", null);
+            foreach (ManagementObject profile in mgr.GetInstances())
+            {
+                return $"{profile["Name"]}: Enabled={profile["Enabled"]}";
+            }
+        }
+        catch { }
+        return "Could not determine firewall status.";
+    }
+
+    [KernelFunction]
+    public string GetLastRebootTime()
+    {
+        using var searcher = new ManagementObjectSearcher("SELECT LastBootUpTime FROM Win32_OperatingSystem");
+        foreach (ManagementObject obj in searcher.Get())
+        {
+            var bootTime = ManagementDateTimeConverter.ToDateTime(obj["LastBootUpTime"].ToString());
+            return bootTime.ToString();
+        }
+        return "Unknown";
+    }
+
+    [KernelFunction]
+    public string GetLoggedInUser()
+    {
+        return Environment.UserName;
     }
 
     private string FormatBytes(ulong bytes)
