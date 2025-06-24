@@ -272,6 +272,101 @@ public class SystemDiagnosticsPlugin
         return "Battery not available";
     }
 
+    [KernelFunction]
+    public string GetGpuInfo()
+    {
+        using var searcher = new ManagementObjectSearcher("SELECT Name FROM Win32_VideoController");
+        foreach (var obj in searcher.Get())
+        {
+            return obj["Name"].ToString();
+        }
+        return "Unknown";
+    }
+
+    [KernelFunction]
+    public string GetBiosVersion()
+    {
+        using var searcher = new ManagementObjectSearcher("SELECT SMBIOSBIOSVersion FROM Win32_BIOS");
+        foreach (var obj in searcher.Get())
+        {
+            return obj["SMBIOSBIOSVersion"].ToString();
+        }
+        return "Unknown";
+    }
+
+    [KernelFunction]
+    public string GetMotherboardInfo()
+    {
+        using var searcher = new ManagementObjectSearcher("SELECT Product, Manufacturer FROM Win32_BaseBoard");
+        foreach (var obj in searcher.Get())
+        {
+            return $"{obj["Manufacturer"]} {obj["Product"]}";
+        }
+        return "Unknown";
+    }
+
+    [KernelFunction]
+    public string GetSystemBootMode()
+    {
+        using var searcher = new ManagementObjectSearcher("SELECT BootMode FROM Win32_ComputerSystem");
+        foreach (var obj in searcher.Get())
+        {
+            return obj["BootMode"]?.ToString() ?? "Unknown";
+        }
+        return "Unknown";
+    }
+
+    [KernelFunction]
+    public List<string> ListInstalledPrograms()
+    {
+        var results = new List<string>();
+        using var regKey = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall");
+        foreach (var subKeyName in regKey.GetSubKeyNames())
+        {
+            using var subKey = regKey.OpenSubKey(subKeyName);
+            var name = subKey.GetValue("DisplayName") as string;
+            var version = subKey.GetValue("DisplayVersion") as string;
+            if (!string.IsNullOrWhiteSpace(name))
+                results.Add($"{name} {(version != null ? "v" + version : string.Empty)}");
+        }
+        return results;
+    }
+
+    [KernelFunction]
+    public bool IsProgramInstalled(string name)
+    {
+        return ListInstalledPrograms().Any(p => p.Contains(name, StringComparison.OrdinalIgnoreCase));
+    }
+
+    [KernelFunction]
+    public string GetWifiSsid()
+    {
+        var output = RunCmd("netsh wlan show interfaces");
+        var line = output.Split('\n').FirstOrDefault(l => l.TrimStart().StartsWith("SSID"));
+        return line?.Split(':').Last().Trim() ?? "Not connected";
+    }
+
+    [KernelFunction]
+    public string FlushDns() => RunCmd("ipconfig /flushdns");
+
+    [KernelFunction]
+    public string RenewIp() => RunCmd("ipconfig /renew");
+
+    [KernelFunction]
+    public string RunDiskCheck() => RunCmd("chkdsk");
+
+    private string RunCmd(string cmd)
+    {
+        var psi = new ProcessStartInfo("cmd", $"/c {cmd}")
+        {
+            RedirectStandardOutput = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        using var process = Process.Start(psi);
+        return process.StandardOutput.ReadToEnd();
+    }
+
     private string FormatBytes(ulong bytes)
     {
         string[] sizes = { "B", "KB", "MB", "GB", "TB" };
