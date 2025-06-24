@@ -9,6 +9,7 @@ namespace WorkstationInsights
     {
         public static Kernel KernelInstance { get; private set; }
         public static IChatCompletionService ChatService { get; private set; }
+        public static ChatHistory ChatHistory { get; private set; }
 
         [STAThread]
         static async Task Main()
@@ -37,6 +38,15 @@ namespace WorkstationInsights
 
             // Set chat service reference
             ChatService = KernelInstance.GetRequiredService<IChatCompletionService>();
+
+            // Initialize chat history with guardrail system prompt
+            ChatHistory = new ChatHistory();
+            ChatHistory.AddSystemMessage(
+                "You are a diagnostics and automation assistant for workstation tasks. "
+                + "You must never perform or suggest dangerous, destructive, or irreversible operations "
+                + "without clearly outlining the risks and obtaining explicit user permission. "
+                + "Always prioritize safety, transparency, and user control."
+            );
 
             // Start app
             ApplicationConfiguration.Initialize();

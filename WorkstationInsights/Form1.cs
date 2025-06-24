@@ -316,11 +316,14 @@ namespace WorkstationInsights
                     {
                         foreach (var msg in messages)
                         {
-                            // Use fully qualified name for AuthorRole to avoid any potential ambiguity
-                            Microsoft.SemanticKernel.ChatCompletion.AuthorRole role =
-                                Enum.TryParse<Microsoft.SemanticKernel.ChatCompletion.AuthorRole>(msg.Role, true, out var parsedRole)
-                                ? parsedRole
-                                : Microsoft.SemanticKernel.ChatCompletion.AuthorRole.System; // Default to System if role is unknown
+                            var role = msg.Role.ToLower() switch
+                            {
+                                "user" => Microsoft.SemanticKernel.ChatCompletion.AuthorRole.User,
+                                "assistant" => Microsoft.SemanticKernel.ChatCompletion.AuthorRole.Assistant,
+                                "system" => Microsoft.SemanticKernel.ChatCompletion.AuthorRole.System,
+                                "tool" => Microsoft.SemanticKernel.ChatCompletion.AuthorRole.Tool,
+                                _ => Microsoft.SemanticKernel.ChatCompletion.AuthorRole.System
+                            };
 
                             // Fix: Use the correct overload of AddMessage
                             chatHistory.AddMessage(role, msg.Content);
