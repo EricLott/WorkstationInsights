@@ -635,6 +635,86 @@ public class SystemDiagnosticsPlugin
             .ToList();
     }
 
+    [KernelFunction]
+    public string CreateScheduledTask(string taskName, string scriptPath, string schedule = "DAILY", string time = "09:00")
+    {
+        string cmd = $"schtasks /Create /SC {schedule} /TN \"{taskName}\" /TR \"{scriptPath}\" /ST {time} /F";
+        return RunCmd("cmd", $"/c {cmd}");
+    }
+
+
+    [KernelFunction]
+    public List<string> GetAllNetworkInfo()
+    {
+        var results = new List<string>();
+
+        foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
+        {
+            if (ni.OperationalStatus != OperationalStatus.Up)
+                continue;
+
+            var ipProps = ni.GetIPProperties();
+            var ip = ipProps.UnicastAddresses
+                .FirstOrDefault(ip => ip.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)?.Address.ToString() ?? "N/A";
+            var dns = string.Join(", ", ipProps.DnsAddresses.Select(d => d.ToString()));
+            var mac = string.Join("-", ni.GetPhysicalAddress().GetAddressBytes().Select(b => b.ToString("X2")));
+
+            var info = $"Interface: {ni.Name}\n" +
+                       $"- Type: {ni.NetworkInterfaceType}\n" +
+                       $"- Description: {ni.Description}\n" +
+                       $"- MAC Address: {mac}\n" +
+                       $"- IP Address: {ip}\n" +
+                       $"- DNS Servers: {dns}";
+
+            results.Add(info);
+        }
+
+        // Add SSID and signal strength if Wi-Fi
+        var wifiOutput = RunCmd("netsh", "wlan show interfaces");
+        if (wifiOutput.Contains("SSID"))
+        {
+            string ssid = "", signal = "", radio = "", channel = "", auth = "";
+            foreach (var line in wifiOutput.Split('\n'))
+            {
+                if (line.Contains("SSID") && !line.Contains("BSSID")) ssid = line.Split(':').Last().Trim();
+                else if (line.Contains("Signal")) signal = line.Split(':').Last().Trim();
+                else if (line.Contains("Radio type")) radio = line.Split(':').Last().Trim();
+                else if (line.Contains("Channel")) channel = line.Split(':').Last().Trim();
+                else if (line.Contains("Authentication")) auth = line.Split(':').Last().Trim();
+            }
+
+            results.Add($"Wi-Fi Details:\n- SSID: {ssid}\n- Signal: {signal}\n- Radio: {radio}\n- Channel: {channel}\n- Auth: {auth}");
+        }
+
+        return results;
+    }
+
+
+    [KernelFunction]
+    public List<string> GetWifiDetails()
+    {
+        var output = RunCmd("netsh", "wlan show interfaces");
+        var lines = output.Split('\n');
+        var wifiInfo = new List<string>();
+
+        foreach (var line in lines)
+        {
+            if (line.Contains("SSID") ||
+                line.Contains("Signal") ||
+                line.Contains("Radio type") ||
+                line.Contains("Authentication") ||
+                line.Contains("Channel") ||
+                line.Contains("Receive rate") ||
+                line.Contains("Transmit rate"))
+            {
+                wifiInfo.Add(line.Trim());
+            }
+        }
+
+        return wifiInfo;
+    }
+
+
     private string RunCmd(string exe, string args)
     {
         var psi = new ProcessStartInfo(exe, args)
@@ -646,4 +726,5 @@ public class SystemDiagnosticsPlugin
         using var proc = Process.Start(psi);
         return proc?.StandardOutput.ReadToEnd() ?? "";
     }
+
 }
