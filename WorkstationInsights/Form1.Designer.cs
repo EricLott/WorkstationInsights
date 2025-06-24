@@ -10,12 +10,12 @@ namespace WorkstationInsights
         private System.Windows.Forms.RichTextBox chatHistoryTextBox;
         private System.Windows.Forms.TextBox inputTextBox;
         private System.Windows.Forms.Button sendButton;
-        private System.Windows.Forms.ListBox threadsListBox;
-        private System.Windows.Forms.Panel inputPanel;
-        private System.Windows.Forms.Panel rightPanel;
-        private System.Windows.Forms.ContextMenuStrip threadsContextMenuStrip; // Added
-        private System.Windows.Forms.ToolStripMenuItem renameThreadMenuItem; // Added
-        private System.Windows.Forms.ToolStripMenuItem deleteThreadMenuItem; // Added
+        private WorkstationInsights.ThreadListBox threadsListBox;
+        private WorkstationInsights.BorderedPanel inputPanel;
+        private WorkstationInsights.BorderedPanel mainContentPanel;
+        private System.Windows.Forms.ContextMenuStrip threadsContextMenuStrip;
+        private System.Windows.Forms.ToolStripMenuItem renameThreadMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem deleteThreadMenuItem;
 
         protected override void Dispose(bool disposing)
         {
@@ -38,12 +38,12 @@ namespace WorkstationInsights
             this.chatHistoryTextBox = new System.Windows.Forms.RichTextBox();
             this.inputTextBox = new System.Windows.Forms.TextBox();
             this.sendButton = new System.Windows.Forms.Button();
-            this.threadsListBox = new System.Windows.Forms.ListBox();
-            this.inputPanel = new System.Windows.Forms.Panel();
-            this.rightPanel = new System.Windows.Forms.Panel();
-            this.threadsContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components); // Added
-            this.renameThreadMenuItem = new System.Windows.Forms.ToolStripMenuItem(); // Added
-            this.deleteThreadMenuItem = new System.Windows.Forms.ToolStripMenuItem(); // Added
+            this.threadsListBox = new WorkstationInsights.ThreadListBox();
+            this.inputPanel = new WorkstationInsights.BorderedPanel();
+            this.mainContentPanel = new WorkstationInsights.BorderedPanel();
+            this.threadsContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
+            this.renameThreadMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.deleteThreadMenuItem = new System.Windows.Forms.ToolStripMenuItem();
 
             this.SuspendLayout();
 
@@ -89,55 +89,104 @@ namespace WorkstationInsights
             this.settingsButton.Click += new System.EventHandler(this.SettingsButton_Click);
 
             // threadsListBox
+            this.threadsListBox.BackColor = System.Drawing.Color.White;
+            this.threadsListBox.BorderStyle = System.Windows.Forms.BorderStyle.None;
             this.threadsListBox.Dock = System.Windows.Forms.DockStyle.Left;
-            this.threadsListBox.Width = 180;
+            this.threadsListBox.Font = new System.Drawing.Font("Segoe UI", 9.5F);
             this.threadsListBox.FormattingEnabled = true;
+            this.threadsListBox.ItemHeight = 36;
+            this.threadsListBox.Location = new System.Drawing.Point(0, 25);
+            this.threadsListBox.Name = "threadsListBox";
+            this.threadsListBox.Size = new System.Drawing.Size(220, 525);
             this.threadsListBox.TabIndex = 4;
-            this.threadsListBox.ContextMenuStrip = this.threadsContextMenuStrip; // Assign context menu
-            this.threadsListBox.MouseDown += new System.Windows.Forms.MouseEventHandler(this.ThreadsListBox_MouseDown); // Added MouseDown event
+            this.threadsListBox.ContextMenuStrip = this.threadsContextMenuStrip;
+            this.threadsListBox.MouseDown += new System.Windows.Forms.MouseEventHandler(this.ThreadsListBox_MouseDown);
 
             // chatHistoryTextBox
+            this.chatHistoryTextBox.BackColor = System.Drawing.Color.White;
+            this.chatHistoryTextBox.BorderStyle = System.Windows.Forms.BorderStyle.None;
             this.chatHistoryTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.chatHistoryTextBox.ReadOnly = true;
-            this.chatHistoryTextBox.BackColor = System.Drawing.SystemColors.Window;
             this.chatHistoryTextBox.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.chatHistoryTextBox.TabIndex = 1;
+            this.chatHistoryTextBox.Location = new System.Drawing.Point(10, 10);
+            this.chatHistoryTextBox.Name = "chatHistoryTextBox";
+            this.chatHistoryTextBox.ReadOnly = true;
+            this.chatHistoryTextBox.Size = new System.Drawing.Size(560, 405);
+            this.chatHistoryTextBox.TabIndex = 0;
+            this.chatHistoryTextBox.Text = "";
+            this.chatHistoryTextBox.LinkClicked += new System.Windows.Forms.LinkClickedEventHandler(this.ChatHistoryTextBox_LinkClicked);
 
             // inputTextBox
+            this.inputTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.inputTextBox.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.inputTextBox.Font = new System.Drawing.Font("Segoe UI", 10F);
             this.inputTextBox.Location = new System.Drawing.Point(10, 10);
-            this.inputTextBox.Width = 180;
+            this.inputTextBox.Margin = new System.Windows.Forms.Padding(10);
+            this.inputTextBox.Multiline = true;
+            this.inputTextBox.Name = "inputTextBox";
+            this.inputTextBox.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+            this.inputTextBox.Size = new System.Drawing.Size(460, 60);
             this.inputTextBox.TabIndex = 0;
-            this.inputTextBox.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             this.inputTextBox.KeyDown += new System.Windows.Forms.KeyEventHandler(this.inputTextBox_KeyDown);
+            this.inputTextBox.Enter += new System.EventHandler(this.InputTextBox_Enter);
+            this.inputTextBox.Leave += new System.EventHandler(this.InputTextBox_Leave);
 
             // sendButton
-            this.sendButton.Text = "Send";
-            this.sendButton.Location = new System.Drawing.Point(10, 40);
-            this.sendButton.Width = 180;
+            this.sendButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.sendButton.BackColor = System.Drawing.Color.FromArgb(0, 120, 212);
+            this.sendButton.FlatAppearance.BorderSize = 0;
+            this.sendButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.sendButton.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
+            this.sendButton.ForeColor = System.Drawing.Color.White;
+            this.sendButton.Location = new System.Drawing.Point(480, 10);
+            this.sendButton.Name = "sendButton";
+            this.sendButton.Size = new System.Drawing.Size(90, 60);
             this.sendButton.TabIndex = 1;
-            this.sendButton.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            this.sendButton.Text = "Send";
+            this.sendButton.UseVisualStyleBackColor = false;
             this.sendButton.Click += new System.EventHandler(this.SendButton_Click);
+            this.sendButton.MouseEnter += new System.EventHandler(this.SendButton_MouseEnter);
+            this.sendButton.MouseLeave += new System.EventHandler(this.SendButton_MouseLeave);
 
             // inputPanel
-            this.inputPanel.Dock = DockStyle.Top;
-            this.inputPanel.Height = 80;
+            this.inputPanel.BackColor = System.Drawing.Color.FromArgb(250, 250, 252);
+            this.inputPanel.BorderColor = System.Drawing.Color.FromArgb(225, 225, 230);
+            this.inputPanel.BorderWidth = 1;
+            this.inputPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
+            this.inputPanel.Location = new System.Drawing.Point(220, 450);
+            this.inputPanel.Name = "inputPanel";
+            this.inputPanel.Padding = new System.Windows.Forms.Padding(10);
+            this.inputPanel.Size = new System.Drawing.Size(580, 100);
+            this.inputPanel.TabIndex = 2;
             this.inputPanel.Controls.Add(this.inputTextBox);
             this.inputPanel.Controls.Add(this.sendButton);
 
-            // rightPanel
-            this.rightPanel.Dock = DockStyle.Right;
-            this.rightPanel.Width = 200;
-            this.rightPanel.Controls.Add(this.inputPanel);
+            // mainContentPanel
+            this.mainContentPanel.BackColor = System.Drawing.Color.White;
+            this.mainContentPanel.BorderColor = System.Drawing.Color.FromArgb(225, 225, 230);
+            this.mainContentPanel.BorderWidth = 1;
+            this.mainContentPanel.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.mainContentPanel.Location = new System.Drawing.Point(220, 25);
+            this.mainContentPanel.Name = "mainContentPanel";
+            this.mainContentPanel.Padding = new System.Windows.Forms.Padding(10);
+            this.mainContentPanel.Size = new System.Drawing.Size(580, 425);
+            this.mainContentPanel.TabIndex = 1;
+            this.mainContentPanel.Controls.Add(this.chatHistoryTextBox);
 
             // Form1
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(800, 450);
-            this.Controls.Add(this.chatHistoryTextBox);
-            this.Controls.Add(this.rightPanel);
+            this.BackColor = System.Drawing.Color.White;
+            this.ClientSize = new System.Drawing.Size(800, 550);
+            this.Controls.Add(this.mainContentPanel);
+            this.Controls.Add(this.inputPanel);
             this.Controls.Add(this.threadsListBox);
             this.Controls.Add(this.toolStrip1);
+            this.MinimumSize = new System.Drawing.Size(600, 400);
+            this.Name = "Form1";
+            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "Workstation Insights";
+            this.Resize += new System.EventHandler(this.Form1_Resize);
             this.ResumeLayout(false);
             this.PerformLayout();
         }
