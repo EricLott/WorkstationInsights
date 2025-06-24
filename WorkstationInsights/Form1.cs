@@ -31,6 +31,246 @@ namespace WorkstationInsights
             this.threadsListBox.SelectedIndexChanged += new System.EventHandler(this.ThreadsListBox_SelectedIndexChanged); // Wire up event handler
         }
 
+        private void ThreadsListBox_MouseDown(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Right)
+            {
+                int index = threadsListBox.IndexFromPoint(e.Location);
+                if (index != ListBox.NoMatches)
+                {
+                    threadsListBox.SelectedIndex = index; // Select the item under the mouse cursor
+                }
+            }
+        }
+
+        private void RenameThreadMenuItem_Click(object sender, EventArgs e)
+        {
+            if (threadsListBox.SelectedItem == null) return;
+
+            string oldDisplayName = threadsListBox.SelectedItem.ToString();
+            if (!threadFileMap.TryGetValue(oldDisplayName, out string currentFilePath))
+            {
+                MessageBox.Show("Could not find the file for the selected thread. Please reload.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                LoadChatThreads(); // Attempt to refresh the state
+                return;
+            }
+
+            // Suggest the current display name or filename (if display is truncated/generic) as default for renaming
+            string defaultNameForInputDialog = oldDisplayName;
+            if (oldDisplayName.EndsWith("...") || oldDisplayName.StartsWith("Chat ")) // If truncated or a generic "Chat ..." name
+            {
+                string fnWithoutExt = Path.GetFileNameWithoutExtension(currentFilePath);
+                // Check if filename is not one of the old "chatlog_YYYYMMDD_HHMMSS" formats
+                bool isOldTimestampFormat = fnWithoutExt.StartsWith("chatlog_") && DateTime.TryParseExact(fnWithoutExt.Substring(8), "yyyyMMdd_HHmmss", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out _);
+                if (!isOldTimestampFormat) // If it's not the old format, it might be a user-set name already, or a new timestamp format if StartNewLogFile changed.
+                {
+                     // Prefer filename if it's not the generic timestamped one from StartNewLogFile
+                     if(!fnWithoutExt.StartsWith("chatlog_")) // Check again to be sure
+                        defaultNameForInputDialog = fnWithoutExt;
+                }
+            }
+
+            string newDisplayNameFromUser = Microsoft.VisualBasic.Interaction.InputBox("Enter new name for the thread:", "Rename Thread", defaultNameForInputDialog);
+
+            if (string.IsNullOrWhiteSpace(newDisplayNameFromUser))
+            {
+                return; // Empty name, do nothing
+            }
+
+            // User might have entered a name that, when displayed (e.g. truncated or with counter for uniqueness), looks like the old one.
+            // However, the core check is if the *underlying filename derived from this new name* would change.
+            // Or if user entered literally the same string as was in input box.
+            if (newDisplayNameFromUser == defaultNameForInputDialog && newDisplayNameFromUser == oldDisplayName)
+            {
+                 // If user input is identical to the initial suggestion, AND that suggestion was the actual old display name,
+                 // assume no change is intended.
+                 return;
+            }
+
+
+            string sanitizedBaseName = SanitizeFileName(newDisplayNameFromUser);
+            if (string.IsNullOrWhiteSpace(sanitizedBaseName))
+            {
+                MessageBox.Show("The new name results in an invalid file name (e.g., contains only invalid characters).", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            string targetFilePath = Path.Combine(LogDirectory, sanitizedBaseName + LogFileExtension);
+            string finalNewFilePath = targetFilePath;
+            int counter = 1;
+
+            // Check if a file with the target name *already exists* AND it's *not the current file*.
+            // If "a.json" is being renamed to "b", and "b.json" exists, that's a clash.
+            // If "a.json" is being renamed to "a", it's not a clash with itself for existence check, but we need to handle if it's a no-op.
+            while (File.Exists(finalNewFilePath) && Path.GetFullPath(finalNewFilePath).ToLowerInvariant() != Path.GetFullPath(currentFilePath).ToLowerInvariant())
+            {
+                finalNewFilePath = Path.Combine(LogDirectory, sanitizedBaseName + $" ({counter++})" + LogFileExtension);
+            }
+
+            bool fileNeedsRename = Path.GetFullPath(finalNewFilePath).ToLowerInvariant() != Path.GetFullPath(currentFilePath).ToLowerInvariant();
+
+            // If the new name (after sanitization and uniquification) is the same as an *existing different thread's display name*
+            // This is tricky because display names can be non-unique due to truncation or content-based naming.
+            // For now, we primarily focus on file name uniqueness. `LoadChatThreads` handles display name uniqueness.
+            // A simple check: if the intended `newDisplayNameFromUser` (before sanitization/uniquification) is already a key in `threadFileMap`
+            // for a *different* file, we should warn or disallow.
+            if (threadFileMap.TryGetValue(newDisplayNameFromUser, out string existingPathForNewName) &&
+                Path.GetFullPath(existingPathForNewName).ToLowerInvariant() != Path.GetFullPath(currentFilePath).ToLowerInvariant())
+            {
+                // This means the user is trying to name this thread to a display name that already exists for another thread.
+                // LoadChatThreads will likely append a "(2)" to one of them. This might be acceptable.
+                // For now, allow it, file system uniqueness is key.
+            }
+
+
+            if (!fileNeedsRename && newDisplayNameFromUser == oldDisplayName)
+            {
+                // This can happen if e.g. current name is "Test", user types "Test".
+                // Or current file is "test.json", display "Test", user types "test". Sanitized becomes "test.json". No actual file move needed.
+                // However, if LoadChatThreads would generate a *different* display name (e.g. from content), we might still want to reload.
+                // For simplicity, if no file rename and names are effectively same, do nothing.
+                // Consider if user changes "my thread" to "My Thread" (casing) - file might not change, but display might if not content-based.
+                // The current logic in LoadChatThreads prioritizes content. If filename is fallback, casing change in filename would reflect.
+                // If the filename does not change, and the display name is based on content, nothing will change.
+                // If display name is based on filename, and filename casing changes, File.Move is needed.
+                // The `fileNeedsRename` check using ToLowerInvariant handles this: "a.json" vs "A.json" on Windows is same file, no rename needed.
+                // On Linux, it's different. File.Move should handle OS specifics.
+
+                // If file doesn't need rename AND the user typed the exact same display name they saw, it's a no-op.
+                 return;
+            }
+
+            try
+            {
+                if (fileNeedsRename)
+                {
+                    File.Move(currentFilePath, finalNewFilePath);
+                }
+
+                string previousCurrentLogFilePath = currentLogFilePath; // Preserve to see if the active chat was the one renamed
+
+                currentLogFilePath = null; // Force re-evaluation of current log file path after reload
+                LoadChatThreads();
+
+                // Attempt to re-select the renamed thread using its new file path.
+                // The display name might have changed due to LoadChatThreads logic (e.g. truncation, uniqueness counter)
+                string newDisplayNameToSelect = null;
+                foreach(var entry in threadFileMap)
+                {
+                    if(Path.GetFullPath(entry.Value).ToLowerInvariant() == Path.GetFullPath(finalNewFilePath).ToLowerInvariant())
+                    {
+                        newDisplayNameToSelect = entry.Key;
+                        break;
+                    }
+                }
+
+                if(newDisplayNameToSelect != null && threadsListBox.Items.Contains(newDisplayNameToSelect))
+                {
+                    threadsListBox.SelectedItem = newDisplayNameToSelect;
+                    // If the selected item changed, ThreadsListBox_SelectedIndexChanged will handle loading its content
+                    // and setting currentLogFilePath correctly.
+                }
+                else if (Path.GetFullPath(previousCurrentLogFilePath).ToLowerInvariant() == Path.GetFullPath(finalNewFilePath).ToLowerInvariant())
+                {
+                    // This means the *active* chat was renamed, but we couldn't find its new display name.
+                    // This shouldn't happen if LoadChatThreads works correctly.
+                    // As a fallback, try to set currentLogFilePath to the new path and let SelectedIndexChanged handle it if it finds a match.
+                    currentLogFilePath = finalNewFilePath;
+                }
+
+
+                // If the active chat was renamed, its content should reload due to SelectedIndexChanged.
+                // If a different chat was renamed, the current view remains, which is fine.
+                 MessageBox.Show("Thread renamed successfully.", "Rename Thread", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (IOException ioEx)
+            {
+                MessageBox.Show($"Error renaming thread (file operation): {ioEx.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                LoadChatThreads(); // Try to reload threads to reflect current FS state
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"An unexpected error occurred: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                LoadChatThreads(); // Try to reload threads
+            }
+        }
+
+        // Helper to sanitize string for use as a filename
+        private string SanitizeFileName(string name)
+        {
+            string invalidChars = new string(Path.GetInvalidFileNameChars()) + new string(Path.GetInvalidPathChars());
+            string sanitizedName = name;
+            foreach (char c in invalidChars)
+            {
+                sanitizedName = sanitizedName.Replace(c.ToString(), "_");
+            }
+            return sanitizedName.Length > 50 ? sanitizedName.Substring(0, 50) : sanitizedName; // Keep it reasonably short
+        }
+
+
+        private void DeleteThreadMenuItem_Click(object sender, EventArgs e)
+        {
+            if (threadsListBox.SelectedItem == null) return;
+
+            string selectedThreadName = threadsListBox.SelectedItem.ToString();
+            if (!threadFileMap.TryGetValue(selectedThreadName, out string filePathToDelete))
+            {
+                MessageBox.Show("Could not find the file for the selected thread. Please reload.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                LoadChatThreads(); // Attempt to refresh
+                return;
+            }
+
+            var confirmResult = MessageBox.Show($"Are you sure you want to delete the thread '{selectedThreadName}'?\nThis action cannot be undone.",
+                                               "Confirm Delete",
+                                               MessageBoxButtons.YesNo,
+                                               MessageBoxIcon.Warning);
+
+            if (confirmResult == DialogResult.Yes)
+            {
+                try
+                {
+                    File.Delete(filePathToDelete);
+
+                    bool wasCurrentChat = (currentLogFilePath == filePathToDelete);
+
+                    threadFileMap.Remove(selectedThreadName);
+                    threadsListBox.Items.Remove(selectedThreadName);
+
+                    if (wasCurrentChat)
+                    {
+                        chatHistoryTextBox.Clear();
+                        chatHistory.Clear();
+                        currentLogFilePath = null;
+                        // Optional: Start a new log file immediately or wait for user to click "New Chat" or send a message.
+                        // For now, just clear the view. User can click "New Chat"
+                        // Or, select the next available thread, or clear selection.
+                        if (threadsListBox.Items.Count > 0)
+                        {
+                            threadsListBox.SelectedIndex = 0; // Select the first available thread
+                            // This will trigger ThreadsListBox_SelectedIndexChanged and load that chat
+                        }
+                        else
+                        {
+                            // No threads left, behave like New Chat was clicked
+                            NewChatButton_Click(null, EventArgs.Empty); // Call NewChat to reset state
+                        }
+                    }
+
+                    MessageBox.Show("Thread deleted successfully.", "Delete Thread", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                catch (IOException ioEx)
+                {
+                    MessageBox.Show($"Error deleting thread (file operation): {ioEx.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    LoadChatThreads(); // Refresh list as file state might be inconsistent
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"An unexpected error occurred: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    LoadChatThreads(); // Refresh list
+                }
+            }
+        }
+
         private void InitializeChatLogging()
         {
             // Ensure the log directory exists
@@ -266,10 +506,9 @@ namespace WorkstationInsights
                                 ? firstUserMessage.Content.Substring(0, 30) + "..."
                                 : firstUserMessage.Content;
                         }
-                        else // If no user message, use file name or a generic name
+                        else // If no user message, use file name (without extension) as the display name
                         {
-                             // Use file creation time for a more descriptive default name
-                            threadName = $"Chat {new FileInfo(logFile).CreationTime:yyyy-MM-dd HH-mm-ss}";
+                             threadName = Path.GetFileNameWithoutExtension(logFile);
                         }
 
                         // Ensure thread name is unique in the listbox

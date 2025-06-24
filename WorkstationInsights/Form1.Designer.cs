@@ -13,6 +13,9 @@
         private System.Windows.Forms.ListBox threadsListBox;
         private System.Windows.Forms.Panel inputPanel;
         private System.Windows.Forms.Panel rightPanel;
+        private System.Windows.Forms.ContextMenuStrip threadsContextMenuStrip; // Added
+        private System.Windows.Forms.ToolStripMenuItem renameThreadMenuItem; // Added
+        private System.Windows.Forms.ToolStripMenuItem deleteThreadMenuItem; // Added
 
         protected override void Dispose(bool disposing)
         {
@@ -38,8 +41,34 @@
             this.threadsListBox = new System.Windows.Forms.ListBox();
             this.inputPanel = new System.Windows.Forms.Panel();
             this.rightPanel = new System.Windows.Forms.Panel();
+            this.threadsContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components); // Added
+            this.renameThreadMenuItem = new System.Windows.Forms.ToolStripMenuItem(); // Added
+            this.deleteThreadMenuItem = new System.Windows.Forms.ToolStripMenuItem(); // Added
 
             this.SuspendLayout();
+
+            //
+            // threadsContextMenuStrip
+            //
+            this.threadsContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.renameThreadMenuItem,
+            this.deleteThreadMenuItem});
+            this.threadsContextMenuStrip.Name = "threadsContextMenuStrip";
+            this.threadsContextMenuStrip.Size = new System.Drawing.Size(118, 48);
+            //
+            // renameThreadMenuItem
+            //
+            this.renameThreadMenuItem.Name = "renameThreadMenuItem";
+            this.renameThreadMenuItem.Size = new System.Drawing.Size(117, 22);
+            this.renameThreadMenuItem.Text = "Rename";
+            this.renameThreadMenuItem.Click += new System.EventHandler(this.RenameThreadMenuItem_Click); // Added event handler
+            //
+            // deleteThreadMenuItem
+            //
+            this.deleteThreadMenuItem.Name = "deleteThreadMenuItem";
+            this.deleteThreadMenuItem.Size = new System.Drawing.Size(117, 22);
+            this.deleteThreadMenuItem.Text = "Delete";
+            this.deleteThreadMenuItem.Click += new System.EventHandler(this.DeleteThreadMenuItem_Click); // Added event handler
 
             // toolStrip1
             this.toolStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
@@ -64,6 +93,8 @@
             this.threadsListBox.Width = 180;
             this.threadsListBox.FormattingEnabled = true;
             this.threadsListBox.TabIndex = 4;
+            this.threadsListBox.ContextMenuStrip = this.threadsContextMenuStrip; // Assign context menu
+            this.threadsListBox.MouseDown += new System.Windows.Forms.MouseEventHandler(this.ThreadsListBox_MouseDown); // Added MouseDown event
 
             // chatHistoryTextBox
             this.chatHistoryTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
