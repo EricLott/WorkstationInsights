@@ -1,13 +1,14 @@
 using Microsoft.SemanticKernel;
+using Microsoft.Win32;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Management;
+using System.Net;
 using System.Net.NetworkInformation;
 using System.ServiceProcess;
-using System.Collections.Generic;
-using Microsoft.Win32;
 
 public class SystemDiagnosticsPlugin
 {
@@ -284,17 +285,6 @@ public class SystemDiagnosticsPlugin
     }
 
     [KernelFunction]
-    public string GetBiosVersion()
-    {
-        using var searcher = new ManagementObjectSearcher("SELECT SMBIOSBIOSVersion FROM Win32_BIOS");
-        foreach (var obj in searcher.Get())
-        {
-            return obj["SMBIOSBIOSVersion"].ToString();
-        }
-        return "Unknown";
-    }
-
-    [KernelFunction]
     public string GetMotherboardInfo()
     {
         using var searcher = new ManagementObjectSearcher("SELECT Product, Manufacturer FROM Win32_BaseBoard");
@@ -378,5 +368,282 @@ public class SystemDiagnosticsPlugin
             len /= 1024;
         }
         return $"{len:0.##} {sizes[order]}";
+    }
+
+
+    [KernelFunction]
+    public string GetBiosVersion()
+    {
+        using var searcher = new ManagementObjectSearcher("SELECT SMBIOSBIOSVersion, ReleaseDate FROM Win32_BIOS");
+        foreach (var obj in searcher.Get())
+        {
+            return $"BIOS Version: {obj["SMBIOSBIOSVersion"]}, Release Date: {obj["ReleaseDate"]}";
+        }
+        return "Unknown";
+    }
+
+    [KernelFunction]
+    public string CheckBitLockerStatus()
+    {
+        try
+        {
+            var output = RunCmd("manage-bde", "-status");
+            return output.Length > 1000 ? output[..1000] + "..." : output;
+        }
+        catch { return "BitLocker status could not be retrieved."; }
+    }
+
+    [KernelFunction]
+    public string CheckWindowsActivationStatus()
+    {
+        try
+        {
+            var output = RunCmd("slmgr.vbs", "/xpr");
+            return output;
+        }
+        catch { return "Failed to check activation status."; }
+    }
+
+    [KernelFunction]
+    public List<string> ListMappedDrives()
+    {
+        var results = new List<string>();
+        var driveLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        foreach (var drive in driveLetters)
+        {
+            var path = Environment.ExpandEnvironmentVariables($"%{drive}:%");
+            if (!string.IsNullOrWhiteSpace(path))
+                results.Add($"{drive}: -> {path}");
+        }
+        return results;
+    }
+
+    [KernelFunction]
+    public List<string> ListWindowsFeatures()
+    {
+        try
+        {
+            var output = RunCmd("dism", "/online /get-features /format:table");
+            return output.Split('\n').Where(line => line.Contains("|")).Take(20).ToList();
+        }
+        catch { return new() { "Failed to retrieve features." }; }
+    }
+
+    [KernelFunction]
+    public List<string> ListUserProfiles()
+    {
+        var usersDir = @"C:\Users";
+        return Directory.Exists(usersDir) ? Directory.GetDirectories(usersDir).ToList() : new();
+    }
+
+    [KernelFunction]
+    public string CheckInternetConnectivity()
+    {
+        try
+        {
+            using var client = new WebClient();
+            client.DownloadString("https://www.microsoft.com");
+            return "Internet is reachable.";
+        }
+        catch { return "No internet connectivity."; }
+    }
+
+    [KernelFunction]
+    public List<string> ListOpenPorts()
+    {
+        var output = RunCmd("netstat", "-ano");
+        return output.Split('\n').Where(l => l.Contains("LISTENING")).Take(20).ToList();
+    }
+
+    [KernelFunction]
+    public string FlushDnsCache()
+    {
+        return RunCmd("ipconfig", "/flushdns");
+    }
+
+    [KernelFunction]
+    public string ResetNetworkAdapters()
+    {
+        return RunCmd("netsh", "int ip reset");
+    }
+
+    [KernelFunction]
+    public List<string> ListUsbDevices()
+    {
+        var list = new List<string>();
+        using var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_USBHub");
+        foreach (var d in searcher.Get())
+        {
+            list.Add($"{d["Name"]} - {d["DeviceID"]}");
+        }
+        return list;
+    }
+
+    [KernelFunction]
+    public List<string> ListGpus()
+    {
+        var list = new List<string>();
+        using var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_VideoController");
+        foreach (var d in searcher.Get())
+        {
+            list.Add($"{d["Name"]} - {d["DriverVersion"]}");
+        }
+        return list;
+    }
+
+    [KernelFunction]
+    public List<string> ListDisplays()
+    {
+        var results = new List<string>();
+        using var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_DesktopMonitor");
+        foreach (var m in searcher.Get())
+        {
+            results.Add($"{m["Name"]} - {m["ScreenHeight"]}x{m["ScreenWidth"]}");
+        }
+        return results;
+    }
+
+    [KernelFunction]
+    public List<string> ListBluetoothDevices()
+    {
+        var list = new List<string>();
+        using var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_PnPEntity WHERE Name LIKE '%Bluetooth%'");
+        foreach (var d in searcher.Get())
+        {
+            list.Add($"{d["Name"]}");
+        }
+        return list;
+    }
+
+    [KernelFunction]
+    public string TriggerWindowsUpdateScan()
+    {
+        return RunCmd("powershell", "-Command \"Start-Service wuauserv; (New-Object -ComObject Microsoft.Update.AutoUpdate).DetectNow()\"");
+    }
+
+    [KernelFunction]
+    public string ClearEventLogs()
+    {
+        return RunCmd("powershell", "-Command \"wevtutil el | Foreach-Object {wevtutil cl $_}\"");
+    }
+
+    [KernelFunction]
+    public string RunSfcScan()
+    {
+        return RunCmd("sfc", "/scannow");
+    }
+
+    [KernelFunction]
+    public string RunDismCheck()
+    {
+        return RunCmd("dism", "/online /cleanup-image /scanhealth");
+    }
+
+    [KernelFunction]
+    public string RebootSystem()
+    {
+        return RunCmd("shutdown", "/r /t 0");
+    }
+
+    [KernelFunction]
+    public string ShutdownSystem()
+    {
+        return RunCmd("shutdown", "/s /t 0");
+    }
+
+    [KernelFunction]
+    public string GetDefenderDefinitionsDate()
+    {
+        var output = RunCmd("powershell", "Get-MpComputerStatus | Select-Object -ExpandProperty AntispywareSignatureLastUpdated");
+        return output.Trim();
+    }
+
+    [KernelFunction]
+    public List<string> GetSecurityEvents()
+    {
+        using var log = new EventLog("Security");
+        return log.Entries.Cast<EventLogEntry>()
+            .Where(e => e.EntryType == EventLogEntryType.FailureAudit || e.EntryType == EventLogEntryType.SuccessAudit)
+            .OrderByDescending(e => e.TimeGenerated)
+            .Take(10)
+            .Select(e => $"{e.TimeGenerated} - {e.Message}")
+            .ToList();
+    }
+
+    [KernelFunction]
+    public List<string> ListLocalUsers()
+    {
+        return RunCmd("net", "user").Split('\n')
+            .Where(line => line.Contains("\\") == false && line.Trim().Length > 0)
+            .Skip(4).TakeWhile(l => !l.Contains("The command completed")).ToList();
+    }
+
+    [KernelFunction]
+    public List<string> ListGroupsForUser(string username)
+    {
+        return RunCmd("net", $"user {username}")
+            .Split('\n')
+            .Where(l => l.Contains("*"))
+            .Select(l => l.Trim())
+            .ToList();
+    }
+
+    [KernelFunction]
+    public string CheckAccountLockout(string username)
+    {
+        var output = RunCmd("net", $"user {username}");
+        return output.Contains("Account active") ? "Active" : "Locked or unknown";
+    }
+
+    [KernelFunction]
+    public List<string> ListRecentlyInstalledPrograms()
+    {
+        var output = RunCmd("powershell", "Get-WmiObject -Class Win32_Product | Sort-Object InstallDate -Descending | Select-Object Name, InstallDate -First 10");
+        return output.Split('\n').Where(l => !string.IsNullOrWhiteSpace(l)).ToList();
+    }
+
+    [KernelFunction]
+    public List<string> ListRecentlyModifiedFiles()
+    {
+        var paths = new[] { "C:\\Users\\Public\\Documents", "C:\\Users\\Public\\Downloads" };
+        return paths.SelectMany(p =>
+            Directory.Exists(p)
+                ? Directory.GetFiles(p, "*.*", SearchOption.AllDirectories)
+                    .Select(f => new FileInfo(f))
+                    .OrderByDescending(fi => fi.LastWriteTime)
+                    .Take(5)
+                    .Select(fi => $"{fi.FullName} - {fi.LastWriteTime}")
+                : Array.Empty<string>()
+        ).ToList();
+    }
+
+    [KernelFunction]
+    public string LogoffCurrentUser()
+    {
+        return RunCmd("shutdown", "/l");
+    }
+
+    [KernelFunction]
+    public List<string> ListBsodEvents()
+    {
+        using var log = new EventLog("System");
+        return log.Entries.Cast<EventLogEntry>()
+            .Where(e => e.Source == "BugCheck" || e.EventID == 1001)
+            .OrderByDescending(e => e.TimeGenerated)
+            .Take(10)
+            .Select(e => $"{e.TimeGenerated}: {e.Message}")
+            .ToList();
+    }
+
+    private string RunCmd(string exe, string args)
+    {
+        var psi = new ProcessStartInfo(exe, args)
+        {
+            RedirectStandardOutput = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        using var proc = Process.Start(psi);
+        return proc?.StandardOutput.ReadToEnd() ?? "";
     }
 }
