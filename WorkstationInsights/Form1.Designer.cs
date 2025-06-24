@@ -82,6 +82,7 @@
             // 
             this.inputTextBox.Location = new System.Drawing.Point(12, 380);
             this.inputTextBox.Size = new System.Drawing.Size(650, 23);
+            this.inputTextBox.KeyDown += new System.Windows.Forms.KeyEventHandler(this.inputTextBox_KeyDown);
 
             // 
             // sendButton

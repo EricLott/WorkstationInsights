@@ -123,5 +123,14 @@ namespace WorkstationInsights
         {
             MessageBox.Show("Settings are not implemented yet.");
         }
+
+        private void inputTextBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Enter)
+            {
+                sendButton.PerformClick();
+                e.SuppressKeyPress = true; // Prevent the Enter key from being processed further (e.g., adding a newline)
+            }
+        }
     }
 }
