@@ -322,7 +322,8 @@ namespace WorkstationInsights
                                 ? parsedRole
                                 : Microsoft.SemanticKernel.ChatCompletion.AuthorRole.System; // Default to System if role is unknown
 
-                            chatHistory.AddMessage(new ChatMessageContent(role, msg.Content));
+                            // Fix: Use the correct overload of AddMessage
+                            chatHistory.AddMessage(role, msg.Content);
 
                             // Repopulate UI (simplified, could be more robust)
                             if (role == AuthorRole.User)
