@@ -225,9 +225,51 @@ public class SystemDiagnosticsPlugin
     }
 
     [KernelFunction]
-    public string GetLoggedInUser()
+    public string GetLoggedInUser() => Environment.UserName;
+
+    [KernelFunction]
+    public string GetIpAddress()
     {
-        return Environment.UserName;
+        return NetworkInterface.GetAllNetworkInterfaces()
+            .Where(ni => ni.OperationalStatus == OperationalStatus.Up)
+            .SelectMany(ni => ni.GetIPProperties().UnicastAddresses)
+            .Where(ip => ip.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+            .Select(ip => ip.Address.ToString())
+            .FirstOrDefault() ?? "Unknown";
+    }
+
+    [KernelFunction]
+    public List<string> GetDnsServers()
+    {
+        return NetworkInterface.GetAllNetworkInterfaces()
+            .Where(ni => ni.OperationalStatus == OperationalStatus.Up)
+            .SelectMany(ni => ni.GetIPProperties().DnsAddresses)
+            .Select(dns => dns.ToString())
+            .Distinct()
+            .ToList();
+    }
+
+    [KernelFunction]
+    public bool IsUserAdmin()
+    {
+        using var identity = System.Security.Principal.WindowsIdentity.GetCurrent();
+        var principal = new System.Security.Principal.WindowsPrincipal(identity);
+        return principal.IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
+    }
+
+    [KernelFunction]
+    public string GetBatteryStatus()
+    {
+        try
+        {
+            using var searcher = new ManagementObjectSearcher("SELECT EstimatedChargeRemaining, BatteryStatus FROM Win32_Battery");
+            foreach (ManagementObject obj in searcher.Get())
+            {
+                return $"Charge: {obj["EstimatedChargeRemaining"]}% - Status: {obj["BatteryStatus"]}";
+            }
+        }
+        catch { }
+        return "Battery not available";
     }
 
     private string FormatBytes(ulong bytes)
