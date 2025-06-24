@@ -1,6 +1,5 @@
 using Microsoft.SemanticKernel;
-using Microsoft.SemanticKernel.ChatCompletion;
-using Microsoft.SemanticKernel.ChatCompletion; // Required for AuthorRole
+using Microsoft.SemanticKernel.ChatCompletion; // AuthorRole is in this namespace
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 using System.Text.Json;
 using System.IO; // Added for file operations
@@ -317,8 +316,13 @@ namespace WorkstationInsights
                     {
                         foreach (var msg in messages)
                         {
-                            AuthorRole role = Enum.TryParse<AuthorRole>(msg.Role, true, out var parsedRole) ? parsedRole : AuthorRole.System; // Default to System if role is unknown
-                            chatHistory.AddMessage(role, msg.Content); // Fix: Use the correct overload with two arguments
+                            // Use fully qualified name for AuthorRole to avoid any potential ambiguity
+                            Microsoft.SemanticKernel.ChatCompletion.AuthorRole role =
+                                Enum.TryParse<Microsoft.SemanticKernel.ChatCompletion.AuthorRole>(msg.Role, true, out var parsedRole)
+                                ? parsedRole
+                                : Microsoft.SemanticKernel.ChatCompletion.AuthorRole.System; // Default to System if role is unknown
+
+                            chatHistory.AddMessage(new ChatMessageContent(role, msg.Content));
 
                             // Repopulate UI (simplified, could be more robust)
                             if (role == AuthorRole.User)
