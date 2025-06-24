@@ -318,7 +318,7 @@ namespace WorkstationInsights
                         foreach (var msg in messages)
                         {
                             AuthorRole role = Enum.TryParse<AuthorRole>(msg.Role, true, out var parsedRole) ? parsedRole : AuthorRole.System; // Default to System if role is unknown
-                            chatHistory.AddMessage(new ChatMessageContent(role, msg.Content));
+                            chatHistory.AddMessage(role, msg.Content); // Fix: Use the correct overload with two arguments
 
                             // Repopulate UI (simplified, could be more robust)
                             if (role == AuthorRole.User)
@@ -333,11 +333,10 @@ namespace WorkstationInsights
                             {
                                 chatHistoryTextBox.AppendText($"[Tool Response]: {msg.Content}{Environment.NewLine}");
                             }
-                             else if (role == AuthorRole.System && msg.Content.StartsWith("Error:"))
+                            else if (role == AuthorRole.System && msg.Content.StartsWith("Error:"))
                             {
                                 chatHistoryTextBox.AppendText($"[{msg.Role}]: {msg.Content}{Environment.NewLine}");
                             }
-                            // System messages (like "New chat session started") might not need to be re-displayed unless they are part of the log.
                         }
                     }
                 }
