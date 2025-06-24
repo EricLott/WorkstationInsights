@@ -42,7 +42,7 @@ namespace WorkstationInsights
                 }
                 else
                 {
-                    chatHistoryTextBox.AppendText($"{result.Content}{Environment.NewLine}{Environment.NewLine}");
+                    AppendMarkdownMessage("AI", result.Content);
                     chatHistory.AddAssistantMessage(result.Content ?? "");
                 }
             }
@@ -52,6 +52,22 @@ namespace WorkstationInsights
             }
 
             inputTextBox.Clear();
+        }
+
+        private void AppendMarkdownMessage(string sender, string markdown)
+        {
+            chatHistoryTextBox.SelectionStart = chatHistoryTextBox.TextLength;
+            chatHistoryTextBox.SelectionFont = new Font("Segoe UI", 10F, FontStyle.Bold);
+            chatHistoryTextBox.AppendText($"{sender}: ");
+            chatHistoryTextBox.SelectionFont = new Font("Segoe UI", 10F, FontStyle.Regular);
+
+            var plain = markdown
+                .Replace("**", "")   // strip bold markers
+                .Replace("__", "")   // strip underline markers
+                .Replace("`", "'");  // convert inline code to single quotes
+
+            chatHistoryTextBox.AppendText(plain + Environment.NewLine);
+            chatHistoryTextBox.ScrollToCaret();
         }
 
         private void NewChatButton_Click(object sender, EventArgs e)
