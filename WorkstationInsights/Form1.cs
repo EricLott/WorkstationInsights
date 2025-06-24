@@ -661,10 +661,19 @@ namespace WorkstationInsights
 
         private void inputTextBox_KeyDown(object sender, KeyEventArgs e)
         {
-            if (e.KeyCode == Keys.Enter)
+            if (e.KeyCode == Keys.Enter && !e.Shift)
             {
-                sendButton.PerformClick();
-                e.SuppressKeyPress = true; // Prevent the Enter key from being processed further (e.g., adding a newline)
+                e.SuppressKeyPress = true; // Prevents the 'ding' sound
+                e.Handled = true; // Prevents the newline from being added to the TextBox
+                SendButton_Click(sender, e);
+            }
+            else if (e.KeyCode == Keys.Enter && e.Shift)
+            {
+                // Allow Shift+Enter for new lines
+                int cursorPosition = inputTextBox.SelectionStart;
+                inputTextBox.Text = inputTextBox.Text.Insert(cursorPosition, Environment.NewLine);
+                inputTextBox.SelectionStart = cursorPosition + Environment.NewLine.Length;
+                e.Handled = true; // Prevents the default behavior
             }
         }
     }

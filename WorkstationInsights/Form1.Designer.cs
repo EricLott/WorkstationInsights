@@ -1,4 +1,4 @@
-﻿namespace WorkstationInsights
+namespace WorkstationInsights
 {
     partial class Form1
     {
@@ -143,5 +143,53 @@
         }
 
         #endregion
+
+        private void Form1_Resize(object sender, EventArgs e)
+        {
+            // Adjust the chat history text box size when the form is resized
+            if (chatHistoryTextBox != null)
+            {
+                var padding = 20; // Adjust padding as needed
+                chatHistoryTextBox.Width = mainContentPanel.Width - (padding * 2);
+                chatHistoryTextBox.Left = padding;
+            }
+        }
+
+        private void ChatHistoryTextBox_LinkClicked(object sender, LinkClickedEventArgs e)
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = e.LinkText,
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Unable to open link: {ex.Message}", "Error", 
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void InputTextBox_Enter(object sender, EventArgs e)
+        {
+            inputPanel.BorderColor = Color.FromArgb(0, 120, 212);
+        }
+
+        private void InputTextBox_Leave(object sender, EventArgs e)
+        {
+            inputPanel.BorderColor = Color.FromArgb(225, 225, 230);
+        }
+
+        private void SendButton_MouseEnter(object sender, EventArgs e)
+        {
+            sendButton.BackColor = Color.FromArgb(0, 100, 180);
+        }
+
+        private void SendButton_MouseLeave(object sender, EventArgs e)
+        {
+            sendButton.BackColor = Color.FromArgb(0, 120, 212);
+        }
     }
 }
