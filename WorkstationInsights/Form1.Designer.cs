@@ -11,6 +11,7 @@
         private System.Windows.Forms.TextBox inputTextBox;
         private System.Windows.Forms.Button sendButton;
         private System.Windows.Forms.ListBox threadsListBox; // Added
+        private System.Windows.Forms.Panel inputPanel; // Added
 
         /// <summary>
         /// Clean up any resources being used.
@@ -37,9 +38,20 @@
             this.chatHistoryTextBox = new System.Windows.Forms.RichTextBox();
             this.inputTextBox = new System.Windows.Forms.TextBox();
             this.sendButton = new System.Windows.Forms.Button();
-            this.threadsListBox = new System.Windows.Forms.ListBox(); // Added
+            this.threadsListBox = new System.Windows.Forms.ListBox();
+            this.inputPanel = new System.Windows.Forms.Panel(); // Added instantiation
 
-            this.SuspendLayout(); // Added to prevent layout issues during programmatic changes
+            this.SuspendLayout();
+            //
+            // inputPanel
+            //
+            this.inputPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
+            this.inputPanel.Location = new System.Drawing.Point(0, 375); // Will be adjusted by Dock
+            this.inputPanel.Name = "inputPanel";
+            this.inputPanel.Size = new System.Drawing.Size(800, 45); // Height 45
+            this.inputPanel.TabIndex = 5; // After threadsListBox
+            // No Text property for Panel by default
+
             // 
             // toolStrip1
             // 
@@ -98,40 +110,43 @@
             // 
             // inputTextBox
             // 
-            // Adjusted Location and Size, and Dock
-            this.inputTextBox.Location = new System.Drawing.Point(180, 380); // X = threadsListBox.Width
-            this.inputTextBox.Size = new System.Drawing.Size(488, 23); // Width = ClientSize.Width - threadsListBox.Width - sendButton.Width - margins
+            // Now relative to inputPanel
+            this.inputTextBox.Location = new System.Drawing.Point(6, 10); // Small margin from left/top of panel
+            this.inputTextBox.Size = new System.Drawing.Size(590, 23); // Adjusted Width
             this.inputTextBox.KeyDown += new System.Windows.Forms.KeyEventHandler(this.inputTextBox_KeyDown);
-            this.inputTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.inputTextBox.TabIndex = 2;
+            this.inputTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
+            | System.Windows.Forms.AnchorStyles.Right | System.Windows.Forms.AnchorStyles.Bottom))); // Anchor to all sides of panel for resizing
+            this.inputTextBox.TabIndex = 0; // First control in panel
 
 
             // 
             // sendButton
             // 
-            // Adjusted Location and Size, and Dock
-            this.sendButton.Location = new System.Drawing.Point(675, 380); // X = ClientSize.Width - sendButton.Width - margins
-            this.sendButton.Size = new System.Drawing.Size(113, 23);
+            // Now relative to inputPanel
+            this.sendButton.Location = new System.Drawing.Point(602, 9); // To the right of inputTextBox
+            this.sendButton.Size = new System.Drawing.Size(113, 25); // Adjusted height to match textbox better
             this.sendButton.Text = "Send";
             this.sendButton.Click += new System.EventHandler(this.SendButton_Click);
-            this.sendButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.sendButton.TabIndex = 3;
+            this.sendButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right | System.Windows.Forms.AnchorStyles.Bottom))); // Anchor to keep it on right
+            this.sendButton.TabIndex = 1; // Second control in panel
+
+            // Add inputTextBox and sendButton to inputPanel's controls
+            this.inputPanel.Controls.Add(this.inputTextBox);
+            this.inputPanel.Controls.Add(this.sendButton);
 
             // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(800, 420); // Original client size
-            // Add threadsListBox first so other controls can dock relative to it if needed.
-            this.Controls.Add(this.chatHistoryTextBox); // Dock = Fill, should be after fixed size/docked controls
-            this.Controls.Add(this.inputTextBox);
-            this.Controls.Add(this.sendButton);
-            this.Controls.Add(this.threadsListBox); // Dock = Left
-            this.Controls.Add(this.toolStrip1); // toolStrip is often added first or last
+            this.ClientSize = new System.Drawing.Size(800, 420);
+            // Finalized Controls.Add order for proper docking
+            this.Controls.Add(this.toolStrip1);       // Top (implicit)
+            this.Controls.Add(this.threadsListBox);   // Left
+            this.Controls.Add(this.inputPanel);       // Bottom
+            this.Controls.Add(this.chatHistoryTextBox); // Fill (should be last or after specific docks)
             this.Text = "Workstation Insights";
-            this.ResumeLayout(false); // Added
+            this.ResumeLayout(false);
             this.PerformLayout();
         }
 
