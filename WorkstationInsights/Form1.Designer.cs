@@ -7,7 +7,7 @@
         private System.Windows.Forms.ToolStripButton newChatButton;
         private System.Windows.Forms.ToolStripButton apiKeyButton;
         private System.Windows.Forms.ToolStripButton settingsButton;
-        private System.Windows.Forms.TextBox chatHistoryTextBox;
+        private System.Windows.Forms.RichTextBox chatHistoryTextBox;
         private System.Windows.Forms.TextBox inputTextBox;
         private System.Windows.Forms.Button sendButton;
 
@@ -33,7 +33,7 @@
             this.newChatButton = new System.Windows.Forms.ToolStripButton();
             this.apiKeyButton = new System.Windows.Forms.ToolStripButton();
             this.settingsButton = new System.Windows.Forms.ToolStripButton();
-            this.chatHistoryTextBox = new System.Windows.Forms.TextBox();
+            this.chatHistoryTextBox = new System.Windows.Forms.RichTextBox();
             this.inputTextBox = new System.Windows.Forms.TextBox();
             this.sendButton = new System.Windows.Forms.Button();
 
@@ -71,11 +71,11 @@
             // 
             // chatHistoryTextBox
             // 
-            this.chatHistoryTextBox.Multiline = true;
-            this.chatHistoryTextBox.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
             this.chatHistoryTextBox.Location = new System.Drawing.Point(12, 40);
             this.chatHistoryTextBox.Size = new System.Drawing.Size(776, 330);
             this.chatHistoryTextBox.ReadOnly = true;
+            this.chatHistoryTextBox.BackColor = System.Drawing.SystemColors.Window;
+            this.chatHistoryTextBox.Font = new System.Drawing.Font("Segoe UI", 10F);
 
             // 
             // inputTextBox
