@@ -2,14 +2,54 @@ using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 using System.Text.Json;
+using System.IO; // Added for file operations
 
 namespace WorkstationInsights
 {
     public partial class Form1 : Form
     {
+        private string currentLogFilePath; // To store the path of the current log file
+        private const string LogDirectory = "ChatLogs"; // Directory to store log files
+
         public Form1()
         {
             InitializeComponent();
+            InitializeChatLogging(); // Initialize logging when the form loads
+        }
+
+        private void InitializeChatLogging()
+        {
+            // Ensure the log directory exists
+            if (!Directory.Exists(LogDirectory))
+            {
+                Directory.CreateDirectory(LogDirectory);
+            }
+
+            // Start a new log file for the new session
+            StartNewLogFile();
+        }
+
+        private void StartNewLogFile()
+        {
+            var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            currentLogFilePath = Path.Combine(LogDirectory, $"chatlog_{timestamp}.txt");
+            // You could write an initial message to the log file if desired, e.g.:
+            // File.AppendAllText(currentLogFilePath, $"[Session started at {DateTime.Now}]{Environment.NewLine}");
+        }
+
+        private void LogMessage(string sender, string message)
+        {
+            if (string.IsNullOrEmpty(currentLogFilePath)) return; // Should not happen if initialized correctly
+
+            try
+            {
+                File.AppendAllText(currentLogFilePath, $"[{DateTime.Now:HH:mm:ss}] {sender}: {message}{Environment.NewLine}");
+            }
+            catch (Exception ex)
+            {
+                // Handle potential I/O errors, e.g., by showing a message to the user or logging to a fallback mechanism
+                Console.WriteLine($"Error writing to log file: {ex.Message}"); // Or use a more robust error handling
+            }
         }
 
         private ChatHistory chatHistory = new(); // persist across messages
@@ -20,6 +60,7 @@ namespace WorkstationInsights
             if (string.IsNullOrWhiteSpace(input)) return;
 
             chatHistoryTextBox.AppendText($"> {input}{Environment.NewLine}");
+            LogMessage("User", input); // Log user message
 
             try
             {
@@ -28,27 +69,32 @@ namespace WorkstationInsights
                 chatHistory.AddUserMessage(input);
 
                 var result = await Program.ChatService.GetChatMessageContentAsync(
-    chatHistory,
-    new OpenAIPromptExecutionSettings
-    {
-        ToolCallBehavior = ToolCallBehavior.AutoInvokeKernelFunctions
-    },
-    Program.KernelInstance
-);
+                    chatHistory,
+                    new OpenAIPromptExecutionSettings
+                    {
+                        ToolCallBehavior = ToolCallBehavior.AutoInvokeKernelFunctions
+                    },
+                    Program.KernelInstance
+                );
 
                 if (result.Role == AuthorRole.Tool)
                 {
-                    chatHistoryTextBox.AppendText($"[Tool Response]: {result.Content}{Environment.NewLine}");
+                    var toolContent = result.Content ?? "No content from tool.";
+                    chatHistoryTextBox.AppendText($"[Tool Response]: {toolContent}{Environment.NewLine}");
+                    LogMessage("Tool", toolContent); // Log tool response
                 }
                 else
                 {
-                    AppendMarkdownMessage("AI", result.Content);
-                    chatHistory.AddAssistantMessage(result.Content ?? "");
+                    var aiContent = result.Content ?? "";
+                    AppendMarkdownMessage("AI", aiContent);
+                    chatHistory.AddAssistantMessage(aiContent);
+                    LogMessage("AI", aiContent); // Log AI message
                 }
             }
             catch (Exception ex)
             {
                 chatHistoryTextBox.AppendText($"[Error]: {ex.Message}{Environment.NewLine}");
+                LogMessage("Error", ex.Message); // Log error
             }
 
             inputTextBox.Clear();
@@ -73,6 +119,10 @@ namespace WorkstationInsights
         private void NewChatButton_Click(object sender, EventArgs e)
         {
             chatHistoryTextBox.Clear();
+            chatHistory.Clear(); // Clear the in-memory chat history as well
+            StartNewLogFile(); // Start a new log file for the new session
+            // Optionally, log that a new chat has started in the new log file
+            LogMessage("System", "New chat session started.");
         }
 
         private async void ApiKeyButton_Click(object sender, EventArgs e)
