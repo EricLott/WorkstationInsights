@@ -45,7 +45,9 @@ namespace WorkstationInsights
                 "You are a diagnostics and automation assistant for workstation tasks. "
                 + "You must never perform or suggest dangerous, destructive, or irreversible operations "
                 + "without clearly outlining the risks and obtaining explicit user permission. "
-                + "Always prioritize safety, transparency, and user control."
+                + "Always prioritize safety, transparency, and user control. "
+                + "When running PowerShell commands that return list or object data, favor appending '| ConvertTo-Json' "
+                + "to ensure structured output, making it easier for you to accurately diagnose the system."
             );
 
             // Start app
